@@ -37,11 +37,11 @@ export const setupTokenBridgeInLocalEnv = async () => {
   // set RPCs either from env vars or use defaults
   let parentRpc = process.env['PARENT_RPC'] as string
   let childRpc = process.env['CHILD_RPC'] as string
+  const seqPodId = process.env['SEQ_POD_ID'] as string
   if (parentRpc === undefined || childRpc === undefined) {
     parentRpc = LOCALHOST_L2_RPC
     childRpc = LOCALHOST_L3_RPC
   }
-
   // set deployer keys either from env vars or use defaults
   let parentDeployerKey = process.env['PARENT_KEY'] as string
   let childDeployerKey = process.env['CHILD_KEY'] as string
@@ -78,6 +78,7 @@ export const setupTokenBridgeInLocalEnv = async () => {
   const { l1Network, l2Network: coreL2Network } = await getLocalNetworks(
     parentRpc,
     childRpc,
+    seqPodId,
     rollupAddress
   )
   const _l1Network = l1Network as L2Network
@@ -194,6 +195,7 @@ export const setupTokenBridgeInLocalEnv = async () => {
 export const getLocalNetworks = async (
   l1Url: string,
   l2Url: string,
+  seqPodId: string,
   rollupAddress?: string
 ): Promise<{
   l1Network: L1Network | L2Network
@@ -205,14 +207,14 @@ export const getLocalNetworks = async (
   const l1NetworkInfo = await l1Provider.getNetwork()
   const l2NetworkInfo = await l2Provider.getNetwork()
 
-  /// get parent chain info
-  const container = execSync(
-    'docker ps --filter "name=sequencer" --format "{{.Names}}"'
-  )
-    .toString()
-    .trim()
+  // /// get parent chain info
+  // const container = execSync(
+  //   'docker ps --filter "name=sequencer" --format "{{.Names}}"'
+  // )
+  //   .toString()
+  //   .trim()
   const l2DeploymentData = execSync(
-    `docker exec ${container} cat /config/deployment.json`
+    `kubectl exec -i -t ${seqPodId} -c arbitrum-stack-sequencer -n arbitrum-rollup-1 -- cat /root/l2_config/deployment.json`
   ).toString()
   const l2Data = JSON.parse(l2DeploymentData) as {
     bridge: string
