@@ -95,9 +95,9 @@ export const setupTokenBridgeInLocalEnv = async () => {
     customL1Network: ethLocal,
     customL2Network: _l1Network,
   })
-  addCustomNetwork({
-    customL2Network: coreL2Network,
-  })
+  // addCustomNetwork({
+  //   customL2Network: coreL2Network,
+  // })
 
   // prerequisite - deploy L1 creator and set templates
   console.log('Deploying L1TokenBridgeCreator')
@@ -206,7 +206,6 @@ export const getLocalNetworks = async (
 
   const l1NetworkInfo = await l1Provider.getNetwork()
   const l2NetworkInfo = await l2Provider.getNetwork()
-
   // /// get parent chain info
   // const container = execSync(
   //   'docker ps --filter "name=sequencer" --format "{{.Names}}"'
@@ -221,10 +220,11 @@ export const getLocalNetworks = async (
     inbox: string
     ['sequencer-inbox']: string
     rollup: string
+    outbox: string
   }
 
   const l1Network: L1Network | L2Network = {
-    partnerChainID: 1337,
+    partnerChainID: l1NetworkInfo.chainId,
     partnerChainIDs: [l2NetworkInfo.chainId],
     isArbitrum: true,
     confirmPeriodBlocks: 20,
@@ -232,15 +232,15 @@ export const getLocalNetworks = async (
     nitroGenesisBlock: 0,
     nitroGenesisL1Block: 0,
     depositTimeout: 900000,
-    chainID: 412346,
-    explorerUrl: '',
+    chainID: l2NetworkInfo.chainId,
+    explorerUrl: 'https://explorer-test.dojima.network',
     isCustom: true,
     name: 'ArbLocal',
     blockTime: 0.25,
     ethBridge: {
       bridge: l2Data.bridge,
       inbox: l2Data.inbox,
-      outbox: '',
+      outbox: l2Data.outbox,
       rollup: l2Data.rollup,
       sequencerInbox: l2Data['sequencer-inbox'],
     },
@@ -272,32 +272,35 @@ export const getLocalNetworks = async (
     rollup: '',
   }
 
-  if (rollupAddress === undefined || rollupAddress === '') {
-    let sequencerContainer = execSync(
-      'docker ps --filter "name=l3node" --format "{{.Names}}"'
-    )
-      .toString()
-      .trim()
+  // if (rollupAddress === undefined || rollupAddress === '') {
+  //   let sequencerContainer = execSync(
+  //     'docker ps --filter "name=l3node" --format "{{.Names}}"'
+  //   )
+  //     .toString()
+  //     .trim()
+  //
+  //   deploymentData = execSync(
+  //     `docker exec ${sequencerContainer} cat /config/l3deployment.json`
+  //   ).toString()
+  //
+  //   data = JSON.parse(deploymentData) as {
+  //     bridge: string
+  //     inbox: string
+  //     ['sequencer-inbox']: string
+  //     rollup: string
+  //   }
+  // } else {
+    const rollup = RollupAdminLogic__factory.connect(l2Data.rollup, l1Provider)
 
-    deploymentData = execSync(
-      `docker exec ${sequencerContainer} cat /config/l3deployment.json`
-    ).toString()
-
-    data = JSON.parse(deploymentData) as {
-      bridge: string
-      inbox: string
-      ['sequencer-inbox']: string
-      rollup: string
-    }
-  } else {
-    const rollup = RollupAdminLogic__factory.connect(rollupAddress!, l1Provider)
     data.bridge = await rollup.bridge()
+    console.log('rollup ', data.bridge)
     data.inbox = await rollup.inbox()
     data['sequencer-inbox'] = await rollup.sequencerInbox()
-    data.rollup = rollupAddress!
-  }
+    data.rollup = l2Data.rollup!
+    console.log('data from rollup', data)
+  // }
 
-  const bridge = Bridge__factory.connect(data.bridge, l1Provider)
+  const bridge = Bridge__factory.connect(l2Data.bridge, l1Provider)
   const outboxAddr = await bridge.allowedOutboxList(0)
 
   const l2Network: L2Network = {
